@@ -6,9 +6,9 @@ import { HTMLParseResult, HTMLParserOptions, ParseNodeOptions, ParserConfig } fr
 import BrowserParserHtml from './BrowserParserHtml';
 import { doctypeToString } from '../../utils/dom';
 import { isDef } from '../../utils/mixins';
+import { ParserEvents } from '../types';
 
 const modelAttrStart = 'data-gjs-';
-const event = 'parse:html';
 
 const ParserHtml = (em?: EditorModel, config: ParserConfig & { returnArray?: boolean } = {}) => {
   return {
@@ -312,6 +312,7 @@ const ParserHtml = (em?: EditorModel, config: ParserConfig & { returnArray?: boo
      */
     parse(str: string, parserCss?: any, opts: HTMLParserOptions = {}) {
       const conf = em?.get('Config') || {};
+      const Parser = em?.Parser;
       const res: HTMLParseResult = { html: [] };
       const cf = { ...config, ...opts };
       const preOptions = {
@@ -325,7 +326,9 @@ const ParserHtml = (em?: EditorModel, config: ParserConfig & { returnArray?: boo
         asDocument: this.__checkAsDocument(str, preOptions),
       };
       const { preParser, asDocument } = options;
-      const input = isFunction(preParser) ? preParser(str, { editor: em?.getEditor()! }) : str;
+      const inputOptions = { input: isFunction(preParser) ? preParser(str, { editor: em?.getEditor()! }) : str };
+      Parser?.__emitEvent(ParserEvents.htmlBefore, inputOptions);
+      const { input } = inputOptions;
       const parseRes = isFunction(cf.parserHtml) ? cf.parserHtml(input, options) : BrowserParserHtml(input, options);
       let root = parseRes as HTMLElement;
       const docEl = parseRes as Document;
@@ -365,7 +368,7 @@ const ParserHtml = (em?: EditorModel, config: ParserConfig & { returnArray?: boo
         if (styleStr) res.css = parserCss.parse(styleStr);
       }
 
-      em?.trigger(`${event}:root`, { input, root: root });
+      Parser?.__emitEvent(ParserEvents.htmlRoot, { input, root });
       let resHtml: HTMLParseResult['html'] = [];
 
       if (asDocument) {
@@ -379,7 +382,7 @@ const ParserHtml = (em?: EditorModel, config: ParserConfig & { returnArray?: boo
       }
 
       res.html = resHtml;
-      em?.trigger(event, { input, output: res, options });
+      Parser?.__emitEvent(ParserEvents.html, { input, output: res, options });
 
       return res;
     },

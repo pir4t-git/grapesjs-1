@@ -25,7 +25,7 @@
 
 import { keys } from 'underscore';
 import { Model, SetOptions } from '../../common';
-import { DataRecordProps, DataSourcesEvents } from '../types';
+import { DataRecordProps, DataSourcesEvents, DeepPartialDot } from '../types';
 import DataRecords from './DataRecords';
 import DataSource from './DataSource';
 import EditorModel from '../../editor/model/Editor';
@@ -135,7 +135,7 @@ export default class DataRecord<T extends DataRecordProps = DataRecordProps> ext
    * // Sets 'name' property to 'newValue'
    */
   set<A extends _StringKey<T>>(
-    attributeName: Partial<T> | A,
+    attributeName: DeepPartialDot<T> | A,
     value?: SetOptions | T[A] | undefined,
     options?: SetOptions | undefined,
   ): this;
@@ -146,26 +146,27 @@ export default class DataRecord<T extends DataRecordProps = DataRecordProps> ext
 
     const onRecordSetValue = this.dataSource?.transformers?.onRecordSetValue;
 
-    const applySet = (key: string, val: unknown) => {
+    const applySet = (key: string, val: unknown, opts: SetOptions = {}) => {
       const newValue =
-        options?.avoidTransformers || !onRecordSetValue
+        opts?.avoidTransformers || !onRecordSetValue
           ? val
           : onRecordSetValue({
               id: this.id,
               key,
               value: val,
             });
-
-      super.set(key, newValue, options);
+      super.set(key, newValue, opts);
+      // This ensures to trigger the change event with partial updates
+      super.set({ __p: opts.partial ? true : undefined } as any, opts);
     };
 
     if (typeof attributeName === 'object' && attributeName !== null) {
       const attributes = attributeName as Partial<T>;
       for (const [key, val] of Object.entries(attributes)) {
-        applySet(key, val);
+        applySet(key, val, value as SetOptions);
       }
     } else {
-      applySet(attributeName as string, value);
+      applySet(attributeName as string, value, options);
     }
 
     return this;

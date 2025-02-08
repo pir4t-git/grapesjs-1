@@ -29,6 +29,7 @@ import { isArray, isBoolean, isEmpty, unique, times } from 'underscore';
 import { Module } from '../abstract';
 import EditorModel from '../editor/model/Editor';
 import defConfig, { UndoManagerConfig } from './config';
+import { EditorEvents } from '../editor/types';
 
 export interface UndoGroup {
   index: number;
@@ -36,7 +37,7 @@ export interface UndoGroup {
   labels: string[];
 }
 
-const hasSkip = (opts: any) => opts.avoidStore || opts.noUndo;
+const hasSkip = (opts: any) => opts.avoidStore || opts.noUndo || opts.partial;
 
 const getChanged = (obj: any) => Object.keys(obj.changedAttributes());
 
@@ -144,7 +145,7 @@ export default class UndoManagerModule extends Module<UndoManagerConfig & { name
     this.um.on('undo redo', () => {
       em.getSelectedAll().map((c) => c.trigger('rerender:layer'));
     });
-    ['undo', 'redo'].forEach((ev) => this.um.on(ev, () => em.trigger(ev)));
+    [EditorEvents.undo, EditorEvents.redo].forEach((ev) => this.um.on(ev, () => em.trigger(ev)));
   }
 
   postLoad() {
